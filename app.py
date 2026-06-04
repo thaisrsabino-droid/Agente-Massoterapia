@@ -9,29 +9,23 @@ import json
 scopes = ['https://www.googleapis.com/auth/calendar']
 
 try:
-    # Lendo o texto codificado em Base64 dos Secrets do Streamlit
     encoded_json = st.secrets["gcp_service_account"]["ambiente_chave"]
-    
-    # Decodificando de volta para o formato JSON original do Google
     decoded_json = base64.b64decode(encoded_json).decode("utf-8")
     info_dict = json.loads(decoded_json)
     
-    # Conectando à API do Google Calendar
     credentials = service_account.Credentials.from_service_account_info(info_dict, scopes=scopes)
     service = build('calendar', 'v3', credentials=credentials)
 except Exception as e:
     st.error(f"Erro na conexão com o Google: {e}")
-    st.info("Certifique-se de que colou o código Base64 corretamente nos Secrets do Streamlit.")
     st.stop()
 
-# ID da agenda (Usa-se 'primary' para a agenda principal do e-mail compartilhado)
 AGENDA_ID = 'primary' 
 
-# --- INTERFACE DO UTILIZADOR (STREAMLIT) ---
+# --- INTERFACE DO USUÁRIO (STREAMLIT) ---
 st.set_page_config(page_title="Agenda Massoterapia", page_icon="💆‍♀️")
 
 st.title("💆‍♀️ Sistema de Agendamento de Massoterapia")
-st.write("Preencha os dados abaixo para reservar o seu horário de atendimento.")
+st.write("Preencha os dados abaixo para reservar o seu horário.")
 
 nome = st.text_input("Nome da Cliente")
 data = st.date_input("Escolha a Data")
@@ -40,15 +34,12 @@ telefone = st.text_input("WhatsApp da Cliente (ex: 51999999999)")
 
 if st.button("Confirmar Agendamento"):
     if nome and telefone:
-        # Calcular início e fim do atendimento (considerando 1 hora de duração)
-        # Configurado para o fuso horário de Brasília/Porto Alegre (-03:00)
         start_dt = datetime.combine(data, hora)
         end_dt = start_dt + timedelta(hours=1)
         
         start_time = start_dt.isoformat() + "-03:00"
         end_time = end_dt.isoformat() + "-03:00"
         
-        # --- BLOCO DE VALIDAÇÃO DE CONFLITOS (OVERBOOKING) ---
         try:
             events_result = service.events().list(
                 calendarId=AGENDA_ID,
@@ -59,11 +50,29 @@ if st.button("Confirmar Agendamento"):
             
             eventos_existentes = events_result.get('items', [])
             
-            # Se encontrar algum evento neste horário, bloqueia o agendamento
             if eventos_existentes:
                 st.error("⚠️ Ops! Este horário não está disponível. Já existe um compromisso marcado. Por favor, escolha outro horário.")
             else:
-                # Criar a estrutura do evento para o Google Calendar
+                # Criação do evento corrigida (tudo alinhado perfeitamente)
                 event = {
                     'summary': f'Massagem: {nome}',
-                    'description': f
+                    'description': f'WhatsApp: {telefone}\nAgendado automaticamente.',
+                    'start': {'dateTime': start_time, 'timeZone': 'America/Sao_Paulo'},
+                    'end': {'dateTime': end_time, 'timeZone': 'America/Sao_Paulo'}
+                }
+                
+                service.events().insert(calendarId=AGENDA_ID, body=event).execute()
+                st.success("🎉 Horário reservado com sucesso no Google Agenda!")
+                
+                # Gerador do link do WhatsApp
+                msg = f"Olá {nome}, o seu horário de massoterapia está confirmado para o dia {data.strftime('%d/%m/%Y')} às {hora.strftime('%H:%M')}!"
+                link = f"https://wa.me/{telefone}?text={msg.replace(' ', '%20')}"
+                
+                st.markdown("---")
+                st.markdown(f"### [📲 Clique aqui para enviar a confirmação no WhatsApp da Cliente]({link})")
+        
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao acessar o Google Agenda: {e}")
+            
+    else:
+        st.error("Por favor, preencha todos os campos antes de confirmar.")
