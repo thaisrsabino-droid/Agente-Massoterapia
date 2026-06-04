@@ -1,7 +1,7 @@
 import streamlit as st
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import base64
 import json
 
@@ -28,12 +28,33 @@ st.title("💆‍♀️ Sistema de Agendamento de Massoterapia")
 st.write("Preencha os dados abaixo para reservar o seu horário.")
 
 nome = st.text_input("Nome da Cliente")
-data = st.date_input("Escolha a Data")
+
+# Calendário com formato padrão baseado no idioma do navegador (geralmente pt-BR)
+data = st.date_input("Escolha a Data", format="DD/MM/YYYY")
 hora = st.time_input("Escolha o Horário")
-telefone = st.text_input("WhatsApp da Cliente (ex: 51999999999)")
+
+telefone = st.text_input("WhatsApp da Cliente com DDD (ex: 51999999999)")
 
 if st.button("Confirmar Agendamento"):
-    if nome and telefone:
+    # Validação de Dias da Semana (0 = Segunda, 5 = Sábado, 6 = Domingo)
+    dia_semana = data.weekday()
+    
+    if not nome or not telefone:
+        st.error("Por favor, preencha todos os campos antes de confirmar.")
+    elif dia_semana == 6:
+        st.error("⚠️ Ops! Não realizamos atendimentos aos domingos. Por favor, escolha um dia de segunda a sábado.")
+    elif hora < time(8, 0) or hora > time(18, 0):
+        st.error("⚠️ Horário inválido! Nossos atendimentos são exclusivamente das 08h às 18h.")
+    else:
+        # Limpar o número de telefone de espaços ou traços caso a cliente digite
+        telefone_limpo = "".join(filter(str.isdigit, telefone))
+        
+        # Garante que o código do país (55) esteja no início para o link do WhatsApp funcionar
+        if not telefone_limpo.startswith("55"):
+            telefone_wa = "55" + telefone_limpo
+        else:
+            telefone_wa = telefone_limpo
+
         start_dt = datetime.combine(data, hora)
         end_dt = start_dt + timedelta(hours=1)
         
@@ -53,10 +74,9 @@ if st.button("Confirmar Agendamento"):
             if eventos_existentes:
                 st.error("⚠️ Ops! Este horário não está disponível. Já existe um compromisso marcado. Por favor, escolha outro horário.")
             else:
-                # Criação do evento corrigida (tudo alinhado perfeitamente)
                 event = {
                     'summary': f'Massagem: {nome}',
-                    'description': f'WhatsApp: {telefone}\nAgendado automaticamente.',
+                    'description': f'WhatsApp: {telefone_limpo}\nAgendado automaticamente pelo site.',
                     'start': {'dateTime': start_time, 'timeZone': 'America/Sao_Paulo'},
                     'end': {'dateTime': end_time, 'timeZone': 'America/Sao_Paulo'}
                 }
@@ -64,15 +84,15 @@ if st.button("Confirmar Agendamento"):
                 service.events().insert(calendarId=AGENDA_ID, body=event).execute()
                 st.success("🎉 Horário reservado com sucesso no Google Agenda!")
                 
-                # Gerador do link do WhatsApp
-                msg = f"Olá {nome}, o seu horário de massoterapia está confirmado para o dia {data.strftime('%d/%m/%Y')} às {hora.strftime('%H:%M')}!"
-                link = f"https://wa.me/{telefone}?text={msg.replace(' ', '%20')}"
+                # Gerador do link do WhatsApp corrigido com o '55'
+                data_formatada = data.strftime('%d/%m/%Y')
+                hora_formatada = hora.strftime('%H:%M')
+                msg = f"Olá {nome}, o seu horário de massoterapia está confirmado para o dia {data_formatada} às {hora_formatada}!"
+                
+                link = f"https://wa.me/{telefone_wa}?text={msg.replace(' ', '%20')}"
                 
                 st.markdown("---")
                 st.markdown(f"### [📲 Clique aqui para enviar a confirmação no WhatsApp da Cliente]({link})")
         
         except Exception as e:
             st.error(f"Ocorreu um erro ao acessar o Google Agenda: {e}")
-            
-    else:
-        st.error("Por favor, preencha todos os campos antes de confirmar.")
