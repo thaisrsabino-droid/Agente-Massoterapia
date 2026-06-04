@@ -4,8 +4,10 @@ from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 
 # Configuração de acesso à API
+# No topo do seu app.py
+scopes = ['https://www.googleapis.com/auth/calendar']
 info = st.secrets["gcp_service_account"]
-credentials = service_account.Credentials.from_service_account_info(info)
+credentials = service_account.Credentials.from_service_account_info(info, scopes=scopes)
 service = build('calendar', 'v3', credentials=credentials)
 
 # ID da agenda (Se for a principal da conta, usa-se 'primary')
