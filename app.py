@@ -5,20 +5,20 @@ from datetime import datetime, timedelta
 
 # --- CONFIGURAÇÃO DE ACESSO À API ---
 scopes = ['https://www.googleapis.com/auth/calendar']
-
-# Pegamos os dados dos Secrets
 info = st.secrets["gcp_service_account"]
 
-# AJUSTE CRÍTICO: Transformamos em dicionário e corrigimos as quebras de linha da chave
+# Limpeza profunda da chave
 info_dict = dict(info)
-if "\\n" in info_dict["private_key"]:
-    info_dict["private_key"] = info_dict["private_key"].replace("\\n", "\n")
+# Remove espaços, aspas extras e garante a quebra de linha correta
+clean_key = info_dict["private_key"].replace("\\n", "\n").strip().strip("'").strip('"')
+info_dict["private_key"] = clean_key
 
 try:
     credentials = service_account.Credentials.from_service_account_info(info_dict, scopes=scopes)
     service = build('calendar', 'v3', credentials=credentials)
 except Exception as e:
     st.error(f"Erro na conexão com o Google: {e}")
+    st.info("Dica: Verifique se a chave nos Secrets começa com -----BEGIN e termina com -----END")
     st.stop()
 
 # ID da agenda (Se for a principal da conta, usa-se 'primary')
