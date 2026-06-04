@@ -29,39 +29,48 @@ st.write("Preencha os dados abaixo para reservar o seu horário.")
 
 nome = st.text_input("Nome da Cliente")
 
-# Calendário com formato padrão baseado no idioma do navegador (geralmente pt-BR)
+# Calendário no formato brasileiro
 data = st.date_input("Escolha a Data", format="DD/MM/YYYY")
-hora = st.time_input("Escolha o Horário")
+
+# --- LISTA DE HORÁRIOS PERMITIDOS (INTERVALOS DE 1 HORA) ---
+# Cria as opções das 08:00 até as 18:00
+horarios_disponiveis = [
+    "08:00", "09:00", "10:00", "11:00", "12:00", 
+    "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
+]
+hora_selecionada = st.selectbox("Escolha o Horário", horarios_disponiveis)
 
 telefone = st.text_input("WhatsApp da Cliente com DDD (ex: 51999999999)")
 
 if st.button("Confirmar Agendamento"):
-    # Validação de Dias da Semana (0 = Segunda, 5 = Sábado, 6 = Domingo)
     dia_semana = data.weekday()
     
     if not nome or not telefone:
         st.error("Por favor, preencha todos os campos antes de confirmar.")
     elif dia_semana == 6:
         st.error("⚠️ Ops! Não realizamos atendimentos aos domingos. Por favor, escolha um dia de segunda a sábado.")
-    elif hora < time(8, 0) or hora > time(18, 0):
-        st.error("⚠️ Horário inválido! Nossos atendimentos são exclusivamente das 08h às 18h.")
     else:
-        # Limpar o número de telefone de espaços ou traços caso a cliente digite
+        # Converte a string selecionada (ex: "14:00") em um objeto de hora do Python
+        hora_objeto = datetime.strptime(hora_selecionada, "%H:%M").time()
+        
+        # Limpa o número de telefone
         telefone_limpo = "".join(filter(str.isdigit, telefone))
         
-        # Garante que o código do país (55) esteja no início para o link do WhatsApp funcionar
+        # Garante o prefixo do país para o WhatsApp funcionar direto
         if not telefone_limpo.startswith("55"):
             telefone_wa = "55" + telefone_limpo
         else:
             telefone_wa = telefone_limpo
 
-        start_dt = datetime.combine(data, hora)
+        # Configura o início e fim do evento (Duração estrita de 1 hora)
+        start_dt = datetime.combine(data, hora_objeto)
         end_dt = start_dt + timedelta(hours=1)
         
         start_time = start_dt.isoformat() + "-03:00"
         end_time = end_dt.isoformat() + "-03:00"
         
         try:
+            # --- VALIDAÇÃO DE CONFLITOS ---
             events_result = service.events().list(
                 calendarId=AGENDA_ID,
                 timeMin=start_time,
@@ -72,8 +81,9 @@ if st.button("Confirmar Agendamento"):
             eventos_existentes = events_result.get('items', [])
             
             if eventos_existentes:
-                st.error("⚠️ Ops! Este horário não está disponível. Já existe um compromisso marcado. Por favor, escolha outro horário.")
+                st.error(f"⚠️ Ops! O horário das {hora_selecionada} já está ocupado neste dia. Por favor, escolha outro horário.")
             else:
+                # Criando o evento no Google Calendar
                 event = {
                     'summary': f'Massagem: {nome}',
                     'description': f'WhatsApp: {telefone_limpo}\nAgendado automaticamente pelo site.',
@@ -84,10 +94,9 @@ if st.button("Confirmar Agendamento"):
                 service.events().insert(calendarId=AGENDA_ID, body=event).execute()
                 st.success("🎉 Horário reservado com sucesso no Google Agenda!")
                 
-                # Gerador do link do WhatsApp corrigido com o '55'
+                # Gerador do link do WhatsApp corrigido
                 data_formatada = data.strftime('%d/%m/%Y')
-                hora_formatada = hora.strftime('%H:%M')
-                msg = f"Olá {nome}, o seu horário de massoterapia está confirmado para o dia {data_formatada} às {hora_formatada}!"
+                msg = f"Olá {nome}, o seu horário de massoterapia está confirmado para o dia {data_formatada} às {hora_selecionada}!"
                 
                 link = f"https://wa.me/{telefone_wa}?text={msg.replace(' ', '%20')}"
                 
