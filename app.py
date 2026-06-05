@@ -19,7 +19,7 @@ except Exception as e:
     st.error(f"Erro na conexão com o Google: {e}")
     st.stop()
 
-AGENDA_ID = 'primary' 
+AGENDA_ID = 'thaisrsabino@gmail.com'
 
 # --- INTERFACE DO USUÁRIO (STREAMLIT) ---
 st.set_page_config(page_title="Agenda Massoterapia", page_icon="💆‍♀️")
