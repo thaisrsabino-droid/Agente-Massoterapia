@@ -20,7 +20,7 @@ except Exception as e:
     st.stop()
 
 # IMPORTANTE: Lembre-se de substituir o 'primary' pelo e-mail da sua irmã se ainda não mudou
-AGENDA_ID = 'primary' 
+AGENDA_ID = 'thaisrsabino@gmail.com' 
 
 # --- INTERFACE DO USUÁRIO (STREAMLIT) ---
 st.set_page_config(page_title="Agenda Massoterapia", page_icon="💆‍♀️")
