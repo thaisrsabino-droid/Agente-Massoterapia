@@ -19,7 +19,8 @@ except Exception as e:
     st.error(f"Erro na conexão com o Google: {e}")
     st.stop()
 
-AGENDA_ID = 'thaisrsabino@gmail.com'
+# IMPORTANTE: Lembre-se de substituir o 'primary' pelo e-mail da sua irmã se ainda não mudou
+AGENDA_ID = 'primary' 
 
 # --- INTERFACE DO USUÁRIO (STREAMLIT) ---
 st.set_page_config(page_title="Agenda Massoterapia", page_icon="💆‍♀️")
@@ -33,7 +34,6 @@ nome = st.text_input("Nome da Cliente")
 data = st.date_input("Escolha a Data", format="DD/MM/YYYY")
 
 # --- LISTA DE HORÁRIOS PERMITIDOS (INTERVALOS DE 1 HORA) ---
-# Cria as opções das 08:00 até as 18:00
 horarios_disponiveis = [
     "08:00", "09:00", "10:00", "11:00", "12:00", 
     "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
@@ -47,22 +47,23 @@ if st.button("Confirmar Agendamento"):
     
     if not nome or not telefone:
         st.error("Por favor, preencha todos os campos antes de confirmar.")
-    elif dia_semana == 6:
-        st.error("⚠️ Ops! Não realizamos atendimentos aos domingos. Por favor, escolha um dia de segunda a sábado.")
+    # ALTERAÇÃO AQUI: Se for maior que 4, significa que é Sábado (5) ou Domingo (6)
+    elif dia_semana > 4:
+        st.error("⚠️ Ops! Nossos atendimentos ocorrem exclusivamente de segunda a sexta-feira. Por favor, escolha um dia útil.")
     else:
-        # Converte a string selecionada (ex: "14:00") em um objeto de hora do Python
+        # Converte a string selecionada em um objeto de hora
         hora_objeto = datetime.strptime(hora_selecionada, "%H:%M").time()
         
         # Limpa o número de telefone
         telefone_limpo = "".join(filter(str.isdigit, telefone))
         
-        # Garante o prefixo do país para o WhatsApp funcionar direto
+        # Garante o prefixo do país para o WhatsApp
         if not telefone_limpo.startswith("55"):
             telefone_wa = "55" + telefone_limpo
         else:
             telefone_wa = telefone_limpo
 
-        # Configura o início e fim do evento (Duração estrita de 1 hora)
+        # Configura o início e fim do evento (Duração de 1 hora)
         start_dt = datetime.combine(data, hora_objeto)
         end_dt = start_dt + timedelta(hours=1)
         
@@ -94,7 +95,7 @@ if st.button("Confirmar Agendamento"):
                 service.events().insert(calendarId=AGENDA_ID, body=event).execute()
                 st.success("🎉 Horário reservado com sucesso no Google Agenda!")
                 
-                # Gerador do link do WhatsApp corrigido
+                # Gerador do link do WhatsApp
                 data_formatada = data.strftime('%d/%m/%Y')
                 msg = f"Olá {nome}, o seu horário de massoterapia está confirmado para o dia {data_formatada} às {hora_selecionada}!"
                 
